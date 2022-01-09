@@ -3,7 +3,7 @@
 
 namespace App\Http\Controllers\Bookmarks;
 
-
+use App\Bookmark\UseCase\CreateBookmarkUseCase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateBookmarkRequest;
 use App\Lib\LinkPreview\LinkPreview;
