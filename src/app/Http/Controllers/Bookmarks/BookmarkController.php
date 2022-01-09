@@ -123,12 +123,13 @@ class BookmarkController extends Controller
      * 一緒にデータベースに保存する※ユーザーに入力してもらうのは手間なので
      * URLが存在しないなどの理由で失敗したらバリデーションエラー扱いにする
      *
-     * @param Request $request
+     * @param CreateBookmarkRequest $request
+     * @param CreateBookmarkUseCase $useCase
      * @return Application|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     * @throws ValidationException
      */
-    public function create(CreateBookmarkRequest $request)
+    public function create(CreateBookmarkRequest $request, CreateBookmarkUseCase $useCase)
     {
-        $useCase = new CreateBookmarkUseCase(new MockLinkPreview());
         $useCase->handle($request->url, $request->category, $request->comment);
         // 暫定的に成功時は一覧ページへ
         return redirect('/bookmarks', 302);
