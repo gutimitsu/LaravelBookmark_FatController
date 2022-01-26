@@ -21,7 +21,6 @@ class ShowBookmarkListPageUseCaseTest extends TestCase
 
         $this->useCase = new ShowBookmarkListPageUseCase();
     }
-
     public function testResponseIsCorrect()
     {
         /**
@@ -32,7 +31,6 @@ class ShowBookmarkListPageUseCaseTest extends TestCase
         SEOTools::shouldReceive('setTitle')->withArgs(['ブックマーク一覧'])->once();
         SEOTools::shouldReceive('setDescription')->withArgs(['技術分野に特化したブックマーク一覧です。みんなが投稿した技術分野のブックマークが投稿順に並んでいます。HTML、CSS、JavaScript、Rust、Goなど、気になる分野のブックマークに絞って調べることもできます'])->once();
 
-        // シンプルにユースケースを実行する
         $response = $this->useCase->handle();
 
         /**
@@ -41,6 +39,25 @@ class ShowBookmarkListPageUseCaseTest extends TestCase
          * ・トップカテゴリーについて：10件取得できていること、内容が投稿数順になっていること
          * ・トップユーザーについて：10人取得できていること、内容が投稿数順になっていること
          */
-        self::assertSame(10, count($response['bookmarks']));
+        self::assertCount(10, $response['bookmarks']);
+
+        // 以下が追加した内容です！
+        self::assertCount(10, $response['top_categories']);
+        self::assertCount(10, $response['top_users']);
+
+        // bookmarksの中身を軽くチェック。IDが大きい順に格納されていればOK
+        for ($i = 100; $i > 90; $i--) {
+            self::assertSame($i, $response['bookmarks'][100 - $i]->id);
+        }
+
+        // top_categoriesの中身を軽くチェック。IDが小さい順に格納されていればOK
+        for ($i = 1; $i < 10; $i++) {
+            self::assertSame($i, $response['top_categories'][$i - 1]->id);
+        }
+
+        // top_usersの中身を軽くチェック。IDが小さい順に格納されていればOK
+        for ($i = 1; $i < 10; $i++) {
+            self::assertSame($i, $response['top_users'][$i - 1]->id);
+        }
     }
 }
