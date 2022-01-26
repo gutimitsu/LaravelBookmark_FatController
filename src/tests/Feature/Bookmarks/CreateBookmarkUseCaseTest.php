@@ -19,7 +19,7 @@ class CreateBookmarkUseCaseTest extends TestCase
     {
         parent::setUp();
 
-        $this->useCase = new CreateBookmarkUseCase(new LinkPreview());
+        $this->useCase = new CreateBookmarkUseCase(new MockLinkPreview());
     }
 
     public function testSaveCorrectData()
