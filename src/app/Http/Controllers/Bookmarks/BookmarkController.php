@@ -3,8 +3,11 @@
 
 namespace App\Http\Controllers\Bookmarks;
 
-
+use App\Bookmark\UseCase\CreateBookmarkUseCase;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CreateBookmarkRequest;
+use App\Lib\LinkPreview\LinkPreview;
+use App\Lib\LinkPreview\MockLinkPreview;
 use App\Models\Bookmark;
 use App\Models\BookmarkCategory;
 use App\Models\User;
@@ -21,6 +24,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use App\Bookmark\UseCase\ShowBookmarkListPageUseCase;
 
 class BookmarkController extends Controller
 {
@@ -41,31 +45,13 @@ class BookmarkController extends Controller
      *
      * @return Application|Factory|View
      */
-    public function list(Request $request)
+    public function list(Request $request, ShowBookmarkListPageUseCase $useCase)
     {
-        /**
-         * SEOに必要なtitleタグなどをファサードから設定できるライブラリ
-         * @see https://github.com/artesaos/seotools
-         */
-        SEOTools::setTitle('ブックマーク一覧');
-
-        $bookmarks = Bookmark::query()->with(['category', 'user'])->latest('id')->paginate(10);
-
-        $top_categories = BookmarkCategory::query()->withCount('bookmarks')->orderBy('bookmarks_count', 'desc')->orderBy('id')->take(10)->get();
-
-        // Descriptionの中に人気のカテゴリTOP5を含めるという要件
-        SEOTools::setDescription("技術分野に特化したブックマーク一覧です。みんなが投稿した技術分野のブックマークが投稿順に並んでいます。{$top_categories->pluck('display_name')->slice(0, 5)->join('、')}など、気になる分野のブックマークに絞って調べることもできます");
-
-        $top_users = User::query()->withCount('bookmarks')->orderBy('bookmarks_count', 'desc')->take(10)->get();
-
         return view('page.bookmark_list.index', [
             'h1' => 'ブックマーク一覧',
-            'bookmarks' => $bookmarks,
-            'top_categories' => $top_categories,
-            'top_users' => $top_users
-        ]);
+        ] + $useCase->handle());
     }
-
+    
     /**
      * カテゴリ別ブックマーク一覧
      *
@@ -137,44 +123,14 @@ class BookmarkController extends Controller
      * 一緒にデータベースに保存する※ユーザーに入力してもらうのは手間なので
      * URLが存在しないなどの理由で失敗したらバリデーションエラー扱いにする
      *
-     * @param Request $request
+     * @param CreateBookmarkRequest $request
+     * @param CreateBookmarkUseCase $useCase
      * @return Application|\Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     * @throws ValidationException
      */
-    public function create(Request $request)
+    public function create(CreateBookmarkRequest $request, CreateBookmarkUseCase $useCase)
     {
-        if (Auth::guest()) {
-            // @note ここの処理はユーザープロフィールでも使われている
-            return redirect('/login');
-        }
-
-        Validator::make($request->all(), [
-            'url' => 'required|string|url',
-            'comment' => 'required|string|min:10|max:1000',
-            'category' => 'required|integer|exists:bookmark_categories,id',
-        ])->validate();
-
-        // 下記のサービスでも同様のことが実現できる
-        // @see https://www.linkpreview.net/
-        $previewClient = new Client($request->url);
-        try {
-            $preview = $previewClient->getPreview('general')->toArray();
-
-            $model = new Bookmark();
-            $model->url = $request->url;
-            $model->category_id = $request->category;
-            $model->user_id = Auth::id();
-            $model->comment = $request->comment;
-            $model->page_title = $preview['title'];
-            $model->page_description = $preview['description'];
-            $model->page_thumbnail_url = $preview['cover'];
-            $model->save();
-        } catch (Exception $e) {
-            Log::error($e->getMessage());
-            throw ValidationException::withMessages([
-                'url' => 'URLが存在しない等の理由で読み込めませんでした。変更して再度投稿してください'
-            ]);
-        }
-
+        $useCase->handle($request->url, $request->category, $request->comment);
         // 暫定的に成功時は一覧ページへ
         return redirect('/bookmarks', 302);
     }
